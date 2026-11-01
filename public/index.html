@@ -3383,11 +3383,7 @@
       if (target.closest('#btn-header-home')) { currentTab = 'home'; renderApp(); return; }
       if (target.closest('#btn-header-unlock') || target.closest('#btn-desktop-unlock')) { showUnlockModal(); return; }
       if (target.closest('#btn-desktop-quick-vip')) {
-        appData.license.unlocked = true;
-        appData.license.code = 'TEST-VIP';
-        saveAppData(false);
-        renderApp();
-        showToast('已一鍵解鎖 VIP 完整版！🎉');
+        showUnlockModal();
         return;
       }
       if (target.closest('#btn-header-staff') || target.closest('#btn-desktop-staff-export')) { showStaffShareModal(); return; }
