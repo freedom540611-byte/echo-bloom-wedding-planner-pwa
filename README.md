@@ -11,19 +11,12 @@
 ## 2. 電商授權與通行碼（序號）設定方式
 本系統預設提供「**免費試閱模式**」（開放首頁、給準新人的一封信、使用說明、第 01 章《婚禮總覽》全功能試用，以及四大核心模組的介面預覽）。當買家點擊第 02～13 章或進階功能時，會自動彈出「啟動完整版／前往購買」視窗。
 
-### 內建預設啟動碼（Passcodes）：
-- 通用 VIP 啟動碼：`ECHOBLOOM2026`、`BLOOM888`、`WEDDING520`、`VIP2026`
-- 智慧前綴驗證：任何以 `EB-` 開頭且長度大於等於 7 碼的序號（例如 `EB-9527`、`EB-202610`），皆可自動通過驗證！您可以在電商後台自動發送 `EB-訂單後四碼` 給買家作為專屬啟動碼。
+### 啟動碼設定方式（後端驗證）：
+啟動碼已不再寫在前端程式或本文件中，改由 Cloudflare Worker（`src/worker.js`）的 `POST /api/unlock` 驗證：
+- `UNLOCK_CODES`（Secret）：以逗號分隔的有效啟動碼清單。
+- `UNLOCK_ALLOW_EB_PREFIX`（選填）：設為 `"true"` 時，以 `EB-` 開頭且長度 ≥ 7 的訂單序號也可通過驗證。
 
-### 如何修改啟動碼與電商賣場連結：
-打開 `index.html`，搜尋 `CONFIG_ECOMMERCE`，即可直接修改：
-```javascript
-const CONFIG_ECOMMERCE = {
-  shopUrl: 'https://echobloom.shop/wedding-planner', // 替換為您的電商商品頁網址
-  validCodes: ['ECHOBLOOM2026', 'BLOOM888', 'WEDDING520', 'VIP2026'],
-  prefixRule: 'EB-' // 支援動態訂單序號前綴
-};
-```
+請在 Cloudflare Dashboard → Workers & Pages → 此 Worker → 設定 → 變數和機密 中設定。電商賣場連結仍可在 `index.html` 的 `CONFIG_ECOMMERCE.shopUrl` 修改。
 
 ## 3. 資料儲存與跨裝置備份
 - 買家填寫的所有文字、勾選項目、預算表格、賓客名單、桌次安排、拍立得照片與手繪塗鴉，皆即時自動儲存於瀏覽器本機（`localStorage` key: `echobloom_wedding_v1`）。

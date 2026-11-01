@@ -247,8 +247,7 @@
       brandName: 'Echo Bloom',
       productTitle: '良辰美景・婚禮計劃書',
       shopUrl: 'https://echobloom.shop/products/wedding-planner-pwa',
-      validCodes: ['ECHOBLOOM2026', 'BLOOM888', 'WEDDING520', 'VIP2026'],
-      prefixRule: 'EB-',
+      unlockApi: '/api/unlock',
       storageKey: 'echobloom_wedding_v1'
     };
 
@@ -2833,7 +2832,7 @@
       }
       if (dDesc) {
         dDesc.textContent = unlocked
-          ? `啟動碼：${appData.license.code || 'VIP2026'}｜已開放全部 13 章節完整編輯與匯出備份功能。`
+          ? `啟動碼：${appData.license.code || '已驗證'}｜已開放全部 13 章節完整編輯與匯出備份功能。`
           : '試閱模式開放首頁與第 01 章完整體驗。點擊其他章節可測試買家「啟動碼解鎖」流程。';
       }
     }
@@ -3053,9 +3052,9 @@
 
           <div>
             <label class="text-xs font-semibold text-slate-700 block mb-1.5">請輸入您的專屬啟動碼（Passcode）</label>
-            <input type="text" id="input-passcode" value="${escapeHtml(appData.license.code || 'ECHOBLOOM2026')}" placeholder="例如：ECHOBLOOM2026 或 EB-8888" class="eb-input font-mono uppercase text-center text-base font-bold tracking-wider" />
+            <input type="text" id="input-passcode" value="${escapeHtml(appData.license.code || '')}" placeholder="請輸入啟動碼或 EB- 訂單序號" class="eb-input font-mono uppercase text-center text-base font-bold tracking-wider" />
             <p id="passcode-error" class="text-xs text-rose-600 mt-1 hidden"></p>
-            <p class="text-[11px] text-slate-400 mt-1.5">💡 賣家測試提示：預設可直接點擊下方驗證 <code class="bg-slate-100 px-1.5 py-0.5 rounded text-pink-600">ECHOBLOOM2026</code> 或任意 <code class="bg-slate-100 px-1.5 py-0.5 rounded text-pink-600">EB-xxxx</code> 序號。</p>
+            <p class="text-[11px] text-slate-400 mt-1.5">💡 請輸入購買後收到的啟動碼或訂單序號，系統將線上驗證。</p>
           </div>
 
           <div class="flex flex-col gap-2 pt-1">
@@ -3191,7 +3190,7 @@
             <div class="p-3 rounded-2xl bg-pink-50/70">
               <strong class="text-pink-700 block mb-1">1. 買家購買與發送序號流程（零伺服器成本）</strong>
               買家在您的電商網站下單後，系統自動寄出「PWA 網址」＋「啟動碼」。
-              <br/>・通用啟動碼：<code class="bg-white px-1.5 py-0.5 rounded font-mono text-pink-600">ECHOBLOOM2026</code>、<code class="bg-white px-1.5 py-0.5 rounded font-mono text-pink-600">BLOOM888</code>、<code class="bg-white px-1.5 py-0.5 rounded font-mono text-pink-600">WEDDING520</code>
+              <br/>・通用啟動碼：設定於 Cloudflare Worker 機密 <code class="bg-white px-1.5 py-0.5 rounded font-mono text-pink-600">UNLOCK_CODES</code>（不會出現在前端）
               <br/>・專屬訂單序號：任何以 <code class="bg-white px-1.5 py-0.5 rounded font-mono text-pink-600">EB-</code> 開頭且滿 7 碼的序號（如 <code class="bg-white px-1.5 py-0.5 rounded font-mono">EB-202610</code>）皆可解鎖。
             </div>
 
@@ -3384,11 +3383,7 @@
       if (target.closest('#btn-header-home')) { currentTab = 'home'; renderApp(); return; }
       if (target.closest('#btn-header-unlock') || target.closest('#btn-desktop-unlock')) { showUnlockModal(); return; }
       if (target.closest('#btn-desktop-quick-vip')) {
-        appData.license.unlocked = true;
-        appData.license.code = 'ECHOBLOOM2026';
-        saveAppData(false);
-        renderApp();
-        showToast('已一鍵解鎖 VIP 完整版！🎉');
+        showUnlockModal();
         return;
       }
       if (target.closest('#btn-header-staff') || target.closest('#btn-desktop-staff-export')) { showStaffShareModal(); return; }
@@ -3412,20 +3407,33 @@
         const input = document.getElementById('input-passcode');
         const errEl = document.getElementById('passcode-error');
         const code = (input ? input.value : '').trim().toUpperCase();
-        const isValid = CONFIG_ECOMMERCE.validCodes.includes(code) ||
-          (code.startsWith(CONFIG_ECOMMERCE.prefixRule) && code.length >= 7);
-        if (isValid) {
-          appData.license.unlocked = true;
-          appData.license.code = code;
-          appData.license.activatedAt = new Date().toISOString();
-          saveAppData(false);
-          closeModal();
-          renderApp();
-          showToast('🎉 啟動碼驗證成功！已解鎖全部 13 章節');
-        } else if (errEl) {
-          errEl.textContent = '啟動碼格式不正確，請輸入 ECHOBLOOM2026 或 EB- 開頭之 7 碼以上訂單序號。';
-          errEl.classList.remove('hidden');
+        if (!code) {
+          if (errEl) { errEl.textContent = '請輸入啟動碼。'; errEl.classList.remove('hidden'); }
+          return;
         }
+        fetch(CONFIG_ECOMMERCE.unlockApi, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: code })
+        }).then(function (r) { return r.json(); }).then(function (res) {
+          if (res && res.ok === true) {
+            appData.license.unlocked = true;
+            appData.license.code = code;
+            appData.license.activatedAt = new Date().toISOString();
+            saveAppData(false);
+            closeModal();
+            renderApp();
+            showToast('🎉 啟動碼驗證成功！已解鎖全部 13 章節');
+          } else if (errEl) {
+            errEl.textContent = '啟動碼不正確，請確認您收到的啟動碼或訂單序號。';
+            errEl.classList.remove('hidden');
+          }
+        }).catch(function () {
+          if (errEl) {
+            errEl.textContent = '無法連線驗證，請確認網路後再試一次。';
+            errEl.classList.remove('hidden');
+          }
+        });
       } else if (act === 'continue-preview-ch') {
         closeModal();
         showToast('目前為免費試閱模式 👀');
